@@ -2,7 +2,7 @@ name: Ping and Notify
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # รันทุก 5 นาที
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -14,19 +14,19 @@ jobs:
         run: |
           DOMAIN="${{ secrets.IP }}"
           IP=$(dig +short "$DOMAIN" | tail -n1)
-          TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-          # เก็บไว้ใน environment variable เงียบ ๆ
+          # ใช้เวลา Bangkok (UTC+7)
+          TIMESTAMP=$(TZ="Asia/Bangkok" date +"%Y-%m-%d %H:%M:%S")
+          # เก็บ env เงียบ ๆ
           echo "DOMAIN=$DOMAIN" >> $GITHUB_ENV
           echo "IP=$IP" >> $GITHUB_ENV
           echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
-          # ไม่ echo IP หรือค่าอื่น ๆ → log ของ GitHub จะ clean
 
       - name: Send Telegram message
         run: |
           if [[ "$IP" == 1.* ]]; then
-            MESSAGE="⚠️🚨 ALERT! Domain $DOMAIN resolved to CRITICAL IP $IP at $TIMESTAMP 🚨⚠️"
+            MESSAGE="⚠️🚨 ALERT! Domain $DOMAIN resolved to CRITICAL IP $IP at $TIMESTAMP (Bangkok) 🚨⚠️"
           else
-            MESSAGE="✅ Domain $DOMAIN checked at $IP at $TIMESTAMP"
+            MESSAGE="✅ Domain $DOMAIN checked at $IP at $TIMESTAMP (Bangkok)"
           fi
 
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
