@@ -3,7 +3,7 @@ name: Ping and Notify
 on:
   schedule:
     - cron: "*/5 * * * *"   # รันทุก 5 นาที
-  workflow_dispatch:         # สามารถกดรันเองได้
+  workflow_dispatch:         # กดรันเองได้
 
 jobs:
   check-ip:
@@ -19,17 +19,14 @@ jobs:
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
           echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
 
-      - name: Send normal log
+      - name: Send Telegram message
         run: |
-          MESSAGE="ℹ️ Checked domain ${{ steps.dns.outputs.domain }}: IP = ${{ steps.dns.outputs.ip }} at ${{ steps.dns.outputs.timestamp }}"
+          if [[ "${{ steps.dns.outputs.ip }}" == 1.* ]]; then
+            MESSAGE="⚠️🚨 ALERT! Domain ${{ steps.dns.outputs.domain }} resolved to CRITICAL IP ${{ steps.dns.outputs.ip }} at ${{ steps.dns.outputs.timestamp }} 🚨⚠️"
+          else
+            MESSAGE="✅ Domain ${{ steps.dns.outputs.domain }} resolved to IP ${{ steps.dns.outputs.ip }} at ${{ steps.dns.outputs.timestamp }}"
+          fi
+
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
             -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
             -d text="$MESSAGE"
-
-      - name: Send alert if IP starts with 1.
-        if: startsWith(steps.dns.outputs.ip, '1.')
-        run: |
-          ALERT="⚠️🚨 ALERT! Domain ${{ steps.dns.outputs.domain }} resolved to CRITICAL IP ${{ steps.dns.outputs.ip }} at ${{ steps.dns.outputs.timestamp }} 🚨⚠️"
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
-            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-            -d text="$ALERT"
