@@ -1,0 +1,25 @@
+name: Ping and Notify
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # รันทุก 5 นาที
+  workflow_dispatch:         # กดรันเองได้
+
+jobs:
+  check-ip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve domain to IP
+        id: dns
+        run: |
+          DOMAIN="${{ secrets.IP }}"
+          IP=$(dig +short "$DOMAIN" | tail -n1)
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+
+      - name: Check and Notify
+        if: startsWith(steps.dns.outputs.ip, '1.')
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            -d text="⚠️ ${{ steps.dns.outputs.domain }} resolved to ${{ steps.dns.outputs.ip }}"
