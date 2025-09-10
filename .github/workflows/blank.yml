@@ -3,28 +3,30 @@ name: Ping and Notify
 on:
   schedule:
     - cron: "*/5 * * * *"   # รันทุก 5 นาที
-  workflow_dispatch:         # กดรันเองได้
+  workflow_dispatch:
 
 jobs:
   check-ip:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve domain to IP
+      - name: Resolve domain to IP silently
         id: dns
         run: |
           DOMAIN="${{ secrets.IP }}"
           IP=$(dig +short "$DOMAIN" | tail -n1)
           TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-          echo "ip=$IP" >> $GITHUB_OUTPUT
-          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
-          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+          # เก็บไว้ใน environment variable เงียบ ๆ
+          echo "DOMAIN=$DOMAIN" >> $GITHUB_ENV
+          echo "IP=$IP" >> $GITHUB_ENV
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+          # ไม่ echo IP หรือค่าอื่น ๆ → log ของ GitHub จะ clean
 
       - name: Send Telegram message
         run: |
-          if [[ "${{ steps.dns.outputs.ip }}" == 1.* ]]; then
-            MESSAGE="⚠️🚨 ALERT! Domain ${{ steps.dns.outputs.domain }} resolved to CRITICAL IP ${{ steps.dns.outputs.ip }} at ${{ steps.dns.outputs.timestamp }} 🚨⚠️"
+          if [[ "$IP" == 1.* ]]; then
+            MESSAGE="⚠️🚨 ALERT! Domain $DOMAIN resolved to CRITICAL IP $IP at $TIMESTAMP 🚨⚠️"
           else
-            MESSAGE="✅ Domain ${{ steps.dns.outputs.domain }} resolved to IP ${{ steps.dns.outputs.ip }} at ${{ steps.dns.outputs.timestamp }}"
+            MESSAGE="✅ Domain $DOMAIN checked at $IP at $TIMESTAMP"
           fi
 
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
